@@ -5,6 +5,7 @@ import { ArrowLeftOutlined, CreditCardOutlined } from '@ant-design/icons';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { createOrder, createPaymentIntent, confirmPayment } from '../../services/orders';
+import { useCart } from '../../contexts/CartContext';
 import styled from 'styled-components';
 
 const { Title, Text } = Typography;
@@ -97,34 +98,61 @@ const OrderCheckout = () => {
   const [order, setOrder] = useState(null);
   const [clientSecret, setClientSecret] = useState(null);
   const [step, setStep] = useState(1); // 1: Address form, 2: Payment
+  const { clearCart } = useCart();
 
   const product = location.state?.product;
+  const cartItems = location.state?.cartItems;
+
+  // Determine items to display and calculate total
+  const getOrderItems = () => {
+    if (cartItems && cartItems.length > 0) {
+      return cartItems.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+      }));
+    } else if (product) {
+      return [{ product, quantity: 1 }];
+    }
+    return [];
+  };
+
+  const orderItems = getOrderItems();
+
+  const calculateTotal = () => {
+    return orderItems.reduce((total, item) => {
+      const price = parseFloat(item.product.price) || 0;
+      return total + price * item.quantity;
+    }, 0);
+  };
 
   useEffect(() => {
-    if (!product) {
-      antdMessage.warning('No product selected. Redirecting to products...');
+    if (orderItems.length === 0) {
+      antdMessage.warning('No items selected. Redirecting to products...');
       navigate('/products');
     }
-  }, [product, navigate]);
+  }, [orderItems.length, navigate]);
 
   const handleOrderCreation = async (values) => {
-    if (!product) return;
+    if (orderItems.length === 0) return;
 
     setLoading(true);
     try {
       const orderData = {
         shipping_address: values.shipping_address,
         billing_address: values.billing_address || values.shipping_address,
-        items: [
-          {
-            product_id: product.id,
-            quantity: 1,
-          },
-        ],
+        items: orderItems.map((item) => ({
+          product_id: item.product.id,
+          quantity: item.quantity,
+        })),
       };
 
       const createdOrder = await createOrder(orderData);
       setOrder(createdOrder);
+
+      // Clear cart if checkout was from cart
+      if (cartItems && cartItems.length > 0) {
+        clearCart();
+      }
 
       // Create payment intent
       const paymentData = await createPaymentIntent(createdOrder.id);
@@ -141,33 +169,55 @@ const OrderCheckout = () => {
     navigate(`/order-success/${order.id}`);
   };
 
-  if (!product) {
+  if (orderItems.length === 0) {
     return null;
   }
+
+  const total = calculateTotal();
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <Button
           icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/products')}
+          onClick={() => {
+            if (cartItems && cartItems.length > 0) {
+              navigate('/cart');
+            } else {
+              navigate('/products');
+            }
+          }}
         >
-          Back to Products
+          {cartItems && cartItems.length > 0 ? 'Back to Cart' : 'Back to Products'}
         </Button>
 
         <Title level={2}>Checkout</Title>
 
         <StyledCard title="Order Summary">
           <Space orientation="vertical" style={{ width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Text strong>{product.name}</Text>
-              <Text strong>${product.price}</Text>
-            </div>
+            {orderItems.map((item, index) => {
+              const itemTotal = parseFloat(item.product.price) * item.quantity;
+              return (
+                <div key={item.product.id || index}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text strong>
+                      {item.product.name} {item.quantity > 1 && `× ${item.quantity}`}
+                    </Text>
+                    <Text strong>${itemTotal.toFixed(2)}</Text>
+                  </div>
+                  {item.product.price && (
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      ${parseFloat(item.product.price).toFixed(2)} each
+                    </Text>
+                  )}
+                </div>
+              );
+            })}
             <Divider style={{ margin: '12px 0' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Text strong>Total</Text>
               <Text strong style={{ fontSize: '18px', color: '#1890ff' }}>
-                ${product.price}
+                ${total.toFixed(2)}
               </Text>
             </div>
           </Space>

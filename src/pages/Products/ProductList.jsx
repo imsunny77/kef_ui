@@ -1,19 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Input, Pagination, Spin, Typography, Image, Space, message, Badge } from 'antd';
+import { Card, Row, Col, Button, Input, Pagination, Spin, Typography, Image, Space, message, Badge, Select } from 'antd';
 import { 
   ShoppingCartOutlined, 
   SearchOutlined,
-  LaptopOutlined,
-  ShoppingOutlined,
-  BookOutlined,
-  HomeOutlined,
-  CarOutlined,
-  MedicineBoxOutlined,
-  AppstoreOutlined,
-  GiftOutlined,
+  PlusOutlined,
+  MinusOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getProducts } from '../../services/products';
+import { getCategories } from '../../services/categories';
+import { useCart } from '../../contexts/CartContext';
 import styled from 'styled-components';
 
 const { Title, Text } = Typography;
@@ -29,80 +25,22 @@ const StyledCard = styled(Card)`
   }
 `;
 
-// Color palette for category cards
+// Color palette for category cards - two gray variants
 const CATEGORY_COLORS = [
-  { primary: '#1890ff', light: '#e6f7ff', border: '#91d5ff' }, // Blue
-  { primary: '#52c41a', light: '#f6ffed', border: '#b7eb8f' }, // Green
-  { primary: '#faad14', light: '#fffbe6', border: '#ffe58f' }, // Orange
-  { primary: '#f5222d', light: '#fff1f0', border: '#ffa39e' }, // Red
-  { primary: '#722ed1', light: '#f9f0ff', border: '#d3adf7' }, // Purple
-  { primary: '#13c2c2', light: '#e6fffb', border: '#87e8de' }, // Cyan
-  { primary: '#eb2f96', light: '#fff0f6', border: '#ffadd2' }, // Pink
-  { primary: '#fa8c16', light: '#fff7e6', border: '#ffd591' }, // Orange
+  { primary: '#737373', light: '#fafafa', border: '#d9d9d9' }, // Light gray
+  { primary: '#262626', light: '#f5f5f5', border: '#bfbfbf' }, // Dark gray
 ];
 
-// Get color for a category based on ID
+// Get color for a category based on ID - alternates between 2 gray colors
 const getCategoryColor = (categoryId) => {
   const index = typeof categoryId === 'number' 
-    ? categoryId % CATEGORY_COLORS.length 
-    : categoryId.toString().charCodeAt(0) % CATEGORY_COLORS.length;
+    ? categoryId % 2 
+    : categoryId.toString().charCodeAt(0) % 2;
   return CATEGORY_COLORS[index];
 };
 
-// Normalize string for matching (lowercase, trim, remove special chars)
-const normalizeString = (str) => {
-  if (!str) return '';
-  return str.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-};
-
-// Get icon for a category based on category object
+// Get icon for a category - returns first letter in a circle
 const getCategoryIcon = (category, colors) => {
-  const iconMap = {
-    'electronics': <LaptopOutlined />,
-    'clothing': <ShoppingOutlined />,
-    'books': <BookOutlined />,
-    'home': <HomeOutlined />,
-    'garden': <HomeOutlined />,
-    'automotive': <CarOutlined />,
-    'health': <MedicineBoxOutlined />,
-    'beauty': <MedicineBoxOutlined />,
-    'sports': <AppstoreOutlined />,
-    'toys': <GiftOutlined />,
-  };
-  
-  // Get normalized values from category object
-  const slug = normalizeString(category?.slug || '');
-  const name = normalizeString(category?.name || '');
-  
-  // Try exact match with slug first (most reliable)
-  if (slug && iconMap[slug]) {
-    return iconMap[slug];
-  }
-  
-  // Try exact match with normalized name
-  if (name && iconMap[name]) {
-    return iconMap[name];
-  }
-  
-  // Try partial match with slug
-  if (slug) {
-    for (const [key, icon] of Object.entries(iconMap)) {
-      if (slug.includes(key) || key.includes(slug)) {
-        return icon;
-      }
-    }
-  }
-  
-  // Try partial match with name
-  if (name) {
-    for (const [key, icon] of Object.entries(iconMap)) {
-      if (name.includes(key) || key.includes(name)) {
-        return icon;
-      }
-    }
-  }
-  
-  // Fallback: show first letter in a circle
   const categoryName = category?.name || '?';
   const initial = categoryName.charAt(0).toUpperCase();
   return (
@@ -131,11 +69,27 @@ const ProductList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [total, setTotal] = useState(0);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const navigate = useNavigate();
+  const { addToCart, cartItems, updateQuantity } = useCart();
 
   useEffect(() => {
     fetchProducts();
-  }, [currentPage, pageSize, searchTerm]);
+  }, [currentPage, pageSize, searchTerm, selectedCategory]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const data = await getCategories();
+      setCategories(data.results || []);
+    } catch (error) {
+      message.error('Failed to load categories');
+    }
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -147,6 +101,10 @@ const ProductList = () => {
       
       if (searchTerm) {
         params.search = searchTerm;
+      }
+
+      if (selectedCategory) {
+        params.category = selectedCategory;
       }
 
       const data = await getProducts(params);
@@ -163,8 +121,37 @@ const ProductList = () => {
     navigate('/checkout', { state: { product } });
   };
 
+  const handleAddToCart = (product) => {
+    addToCart(product, 1);
+  };
+
+  // Get quantity of a product in cart
+  const getCartQuantity = (productId) => {
+    const cartItem = cartItems.find((item) => item.product.id === productId);
+    return cartItem ? cartItem.quantity : 0;
+  };
+
+  const handleQuantityIncrease = (product, currentQuantity) => {
+    if (product.stock_quantity !== undefined && currentQuantity >= product.stock_quantity) {
+      message.warning(`Only ${product.stock_quantity} items available in stock`);
+      return;
+    }
+    updateQuantity(product.id, currentQuantity + 1);
+  };
+
+  const handleQuantityDecrease = (product, currentQuantity) => {
+    if (currentQuantity > 1) {
+      updateQuantity(product.id, currentQuantity - 1);
+    }
+  };
+
   const handleSearch = (value) => {
     setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (value) => {
+    setSelectedCategory(value);
     setCurrentPage(1);
   };
 
@@ -199,14 +186,30 @@ const ProductList = () => {
       <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Title level={2}>Products</Title>
-          <Input
-            placeholder="Search products..."
-            prefix={<SearchOutlined />}
-            allowClear
-            style={{ width: 300 }}
-            onPressEnter={(e) => handleSearch(e.target.value)}
-            onChange={(e) => !e.target.value && handleSearch('')}
-          />
+          <Space>
+            <Select
+              placeholder="Filter by category"
+              allowClear
+              style={{ width: 200 }}
+              value={selectedCategory}
+              onChange={handleCategoryChange}
+              options={[
+                { label: 'All Categories', value: null },
+                ...categories.map(category => ({
+                  label: category.name,
+                  value: category.id,
+                })),
+              ]}
+            />
+            <Input
+              placeholder="Search products..."
+              prefix={<SearchOutlined />}
+              allowClear
+              style={{ width: 300 }}
+              onPressEnter={(e) => handleSearch(e.target.value)}
+              onChange={(e) => !e.target.value && handleSearch('')}
+            />
+          </Space>
         </div>
 
         {loading ? (
@@ -297,14 +300,58 @@ const ProductList = () => {
                             )
                           }
                           actions={[
-                            <Button
-                              type="primary"
-                              icon={<ShoppingCartOutlined />}
-                              block
-                              onClick={() => handleBuyNow(product)}
-                            >
-                              Buy Now
-                            </Button>,
+                            <Space key="actions" direction="vertical" style={{ width: '100%' }} size="small">
+                              <Button
+                                type="primary"
+                                icon={<ShoppingCartOutlined />}
+                                block
+                                onClick={() => handleBuyNow(product)}
+                              >
+                                Buy Now
+                              </Button>
+                              {getCartQuantity(product.id) > 0 ? (
+                                <Space.Compact style={{ width: '100%' }}>
+                                  <Button
+                                    icon={<MinusOutlined />}
+                                    onClick={() => handleQuantityDecrease(product, getCartQuantity(product.id))}
+                                    disabled={getCartQuantity(product.id) <= 1}
+                                    style={{ width: '33%' }}
+                                  />
+                                  <div
+                                    style={{
+                                      width: '34%',
+                                      padding: '4px 8px',
+                                      textAlign: 'center',
+                                      border: '1px solid #d9d9d9',
+                                      borderLeft: 'none',
+                                      borderRight: 'none',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      backgroundColor: '#fafafa',
+                                      fontWeight: '500',
+                                      fontSize: '14px',
+                                    }}
+                                  >
+                                    {getCartQuantity(product.id)}
+                                  </div>
+                                  <Button
+                                    icon={<PlusOutlined />}
+                                    onClick={() => handleQuantityIncrease(product, getCartQuantity(product.id))}
+                                    disabled={product.stock_quantity !== undefined && getCartQuantity(product.id) >= product.stock_quantity}
+                                    style={{ width: '33%' }}
+                                  />
+                                </Space.Compact>
+                              ) : (
+                                <Button
+                                  icon={<PlusOutlined />}
+                                  block
+                                  onClick={() => handleAddToCart(product)}
+                                >
+                                  Add to Cart
+                                </Button>
+                              )}
+                            </Space>,
                           ]}
                         >
                           <Meta

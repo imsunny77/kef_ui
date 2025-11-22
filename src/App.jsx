@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntdApp } from 'antd';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
 import { theme } from './styles/theme';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AppLayout from './components/Layout/AppLayout';
@@ -9,6 +10,7 @@ import AdminRoute from './components/Layout/AdminRoute';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ProductList from './pages/Products/ProductList';
+import Cart from './pages/Cart/Cart';
 import OrderCheckout from './pages/Orders/OrderCheckout';
 import OrderSuccess from './pages/Orders/OrderSuccess';
 import ReportsDashboard from './pages/Reports/ReportsDashboard';
@@ -33,6 +35,16 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <AppLayout>
               <ProductList />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cart"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Cart />
             </AppLayout>
           </ProtectedRoute>
         }
@@ -84,7 +96,9 @@ function App() {
         <AntdApp>
           <BrowserRouter>
             <AuthProvider>
-              <AppRoutes />
+              <CartProvider>
+                <AppRoutes />
+              </CartProvider>
             </AuthProvider>
           </BrowserRouter>
         </AntdApp>

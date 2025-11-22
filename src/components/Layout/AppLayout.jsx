@@ -1,11 +1,13 @@
-import { Layout, Menu, Button, Space, Typography } from 'antd';
+import { Layout, Menu, Button, Space, Typography, Badge } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
 import {
   ShoppingOutlined,
   BarChartOutlined,
   LogoutOutlined,
   HomeOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons';
 
 const { Header, Content, Footer } = Layout;
@@ -15,6 +17,7 @@ const AppLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { getCartItemCount } = useCart();
 
   const handleMenuClick = ({ key }) => {
     navigate(key);
@@ -65,6 +68,14 @@ const AppLayout = ({ children }) => {
           )}
         </div>
         <Space>
+          <Badge count={getCartItemCount()} showZero>
+            <Button
+              type="text"
+              icon={<ShoppingCartOutlined />}
+              onClick={() => navigate('/cart')}
+              style={{ color: '#fff', fontSize: '20px' }}
+            />
+          </Badge>
           <Text style={{ color: '#fff' }}>{user?.email}</Text>
           <Button
             type="text"
