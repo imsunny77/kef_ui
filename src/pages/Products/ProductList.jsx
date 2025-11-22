@@ -72,7 +72,7 @@ const ProductList = () => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const navigate = useNavigate();
-  const { addToCart, cartItems, updateQuantity } = useCart();
+  const { addToCart, cartItems, updateQuantity, refreshCart } = useCart();
 
   useEffect(() => {
     fetchProducts();
@@ -80,6 +80,11 @@ const ProductList = () => {
 
   useEffect(() => {
     fetchCategories();
+  }, []);
+
+  // Refresh cart from backend on mount
+  useEffect(() => {
+    refreshCart();
   }, []);
 
   const fetchCategories = async () => {
@@ -127,7 +132,7 @@ const ProductList = () => {
 
   // Get quantity of a product in cart
   const getCartQuantity = (productId) => {
-    const cartItem = cartItems.find((item) => item.product.id === productId);
+    const cartItem = cartItems.find((item) => item.product?.id === productId);
     return cartItem ? cartItem.quantity : 0;
   };
 
@@ -136,11 +141,13 @@ const ProductList = () => {
       message.warning(`Only ${product.stock_quantity} items available in stock`);
       return;
     }
+    // updateQuantity can handle both productId and itemId - CartContext will find the item
     updateQuantity(product.id, currentQuantity + 1);
   };
 
   const handleQuantityDecrease = (product, currentQuantity) => {
     if (currentQuantity > 1) {
+      // updateQuantity can handle both productId and itemId - CartContext will find the item
       updateQuantity(product.id, currentQuantity - 1);
     }
   };

@@ -118,6 +118,11 @@ export const AuthProvider = ({ children }) => {
     navigate('/login');
   };
 
+  const updateUser = (userData) => {
+    setUser(userData);
+    setUserStorage(userData); // Persist updated user data to localStorage
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -125,6 +130,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

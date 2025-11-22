@@ -10,3 +10,5 @@ export const getProduct = async (id) => {
   return response.data;
 };
 
+
+

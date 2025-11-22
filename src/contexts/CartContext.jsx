@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { message } from 'antd';
+import * as cartService from '../services/cart';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
-
-const CART_STORAGE_KEY = 'cart';
 
 export const useCart = () => {
   const context = useContext(CartContext);
@@ -15,89 +15,133 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { isAuthenticated } = useAuth();
 
-  // Load cart from localStorage on mount
+  // Fetch cart from backend on mount and when authentication status changes
   useEffect(() => {
-    const savedCart = localStorage.getItem(CART_STORAGE_KEY);
-    if (savedCart) {
-      try {
-        setCartItems(JSON.parse(savedCart));
-      } catch (error) {
-        console.error('Error loading cart from localStorage:', error);
-        localStorage.removeItem(CART_STORAGE_KEY);
-      }
-    }
-  }, []);
-
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    if (cartItems.length > 0) {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+    if (isAuthenticated) {
+      fetchCart();
     } else {
-      localStorage.removeItem(CART_STORAGE_KEY);
+      // Clear cart when user logs out
+      setCartItems([]);
     }
-  }, [cartItems]);
+  }, [isAuthenticated]);
 
-  const addToCart = (product, quantity = 1) => {
-    setCartItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.product.id === product.id);
-
-      if (existingItem) {
-        // Check stock availability
-        const newQuantity = existingItem.quantity + quantity;
-        if (product.stock_quantity !== undefined && newQuantity > product.stock_quantity) {
-          message.warning(`Only ${product.stock_quantity} items available in stock`);
-          return prevItems;
-        }
-        // Update quantity
-        return prevItems.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: newQuantity }
-            : item
-        );
-      } else {
-        // Check stock availability
-        if (product.stock_quantity !== undefined && quantity > product.stock_quantity) {
-          message.warning(`Only ${product.stock_quantity} items available in stock`);
-          return prevItems;
-        }
-        // Add new item
-        message.success(`${product.name} added to cart`);
-        return [...prevItems, { product, quantity }];
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      const cartData = await cartService.getCart();
+      // Transform backend cart items to match our expected structure
+      // Backend returns: { id, items: [{ id, product, quantity, price, subtotal }], total_amount }
+      setCartItems(cartData.items || []);
+    } catch (error) {
+      // If cart doesn't exist (404), that's fine - just set empty array
+      if (error.response?.status !== 404) {
+        console.error('Error fetching cart:', error);
+        message.error('Failed to load cart');
       }
-    });
+      setCartItems([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const removeFromCart = (productId) => {
-    setCartItems((prevItems) => prevItems.filter((item) => item.product.id !== productId));
-    message.info('Item removed from cart');
+  const addToCart = async (product, quantity = 1) => {
+    // Support both product object and productId
+    const productId = typeof product === 'object' ? product.id : product;
+    
+    try {
+      setLoading(true);
+      await cartService.addToCart(productId, quantity);
+      // Refresh cart from backend
+      await fetchCart();
+      // Get product name for success message
+      if (typeof product === 'object') {
+        message.success(`${product.name} added to cart`);
+      } else {
+        message.success('Item added to cart');
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      const errorMessage = error.response?.data?.non_field_errors?.[0] || 
+                          error.response?.data?.product_id?.[0] ||
+                          'Failed to add item to cart';
+      message.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateQuantity = (productId, quantity) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
+  const removeFromCart = async (productIdOrItemId) => {
+    // Find the cart item by product ID or use itemId directly
+    const cartItem = cartItems.find((item) => 
+      item.id === productIdOrItemId || item.product.id === productIdOrItemId
+    );
+    
+    if (!cartItem) {
+      message.error('Item not found in cart');
       return;
     }
 
-    setCartItems((prevItems) => {
-      const item = prevItems.find((item) => item.product.id === productId);
-      if (item) {
-        // Check stock availability
-        if (item.product.stock_quantity !== undefined && quantity > item.product.stock_quantity) {
-          message.warning(`Only ${item.product.stock_quantity} items available in stock`);
-          return prevItems;
-        }
-        return prevItems.map((item) =>
-          item.product.id === productId ? { ...item, quantity } : item
-        );
-      }
-      return prevItems;
-    });
+    try {
+      setLoading(true);
+      await cartService.removeCartItem(cartItem.id);
+      // Refresh cart from backend
+      await fetchCart();
+      message.info('Item removed from cart');
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+      message.error('Failed to remove item from cart');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const clearCart = () => {
-    setCartItems([]);
-    message.info('Cart cleared');
+  const updateQuantity = async (productIdOrItemId, quantity) => {
+    if (quantity <= 0) {
+      removeFromCart(productIdOrItemId);
+      return;
+    }
+
+    // Find the cart item by product ID or use itemId directly
+    const cartItem = cartItems.find((item) => 
+      item.id === productIdOrItemId || item.product.id === productIdOrItemId
+    );
+    
+    if (!cartItem) {
+      message.error('Item not found in cart');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await cartService.updateCartItem(cartItem.id, quantity);
+      // Refresh cart from backend
+      await fetchCart();
+    } catch (error) {
+      console.error('Error updating cart item:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.quantity?.[0] ||
+                          'Failed to update item quantity';
+      message.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearCart = async () => {
+    try {
+      setLoading(true);
+      await cartService.clearCart();
+      setCartItems([]);
+      message.info('Cart cleared');
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      message.error('Failed to clear cart');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getCartItemCount = () => {
@@ -106,7 +150,7 @@ export const CartProvider = ({ children }) => {
 
   const getCartTotal = () => {
     return cartItems.reduce((total, item) => {
-      const price = parseFloat(item.product.price) || 0;
+      const price = parseFloat(item.price || item.product?.price) || 0;
       return total + price * item.quantity;
     }, 0);
   };
@@ -117,6 +161,7 @@ export const CartProvider = ({ children }) => {
 
   const value = {
     cartItems,
+    loading,
     addToCart,
     removeFromCart,
     updateQuantity,
@@ -124,8 +169,11 @@ export const CartProvider = ({ children }) => {
     getCartItemCount,
     getCartTotal,
     getCartItems,
+    refreshCart: fetchCart,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };
+
+
 

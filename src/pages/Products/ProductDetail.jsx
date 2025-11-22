@@ -17,11 +17,16 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { addToCart, cartItems, updateQuantity } = useCart();
+  const { addToCart, cartItems, updateQuantity, refreshCart } = useCart();
 
   useEffect(() => {
     fetchProduct();
   }, [id]);
+
+  // Refresh cart from backend on mount
+  useEffect(() => {
+    refreshCart();
+  }, []);
 
   const fetchProduct = async () => {
     setLoading(true);
@@ -37,7 +42,7 @@ const ProductDetail = () => {
   };
 
   const getCartQuantity = (productId) => {
-    const cartItem = cartItems.find((item) => item.product.id === productId);
+    const cartItem = cartItems.find((item) => item.product?.id === productId);
     return cartItem ? cartItem.quantity : 0;
   };
 
@@ -226,4 +231,6 @@ const ProductDetail = () => {
 };
 
 export default ProductDetail;
+
+
 

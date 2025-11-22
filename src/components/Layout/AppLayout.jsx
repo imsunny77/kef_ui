@@ -9,6 +9,7 @@ import {
   HomeOutlined,
   ShoppingCartOutlined,
   UnorderedListOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 
 const { Header, Content, Footer } = Layout;
@@ -90,6 +91,17 @@ const AppLayout = ({ children }) => {
               style={{ color: '#fff', fontSize: '20px' }}
             />
           </Badge>
+          <Button
+            type="text"
+            icon={<UserOutlined />}
+            onClick={() => navigate('/profile')}
+            style={{
+              color: location.pathname === '/profile' ? '#1890ff' : '#fff',
+              fontWeight: location.pathname === '/profile' ? 'bold' : 'normal',
+            }}
+          >
+            Profile
+          </Button>
           <Text style={{ color: '#fff' }}>{user?.email}</Text>
           <Button
             type="text"

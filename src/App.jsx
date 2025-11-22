@@ -9,6 +9,7 @@ import ProtectedRoute from './components/Layout/ProtectedRoute';
 import AdminRoute from './components/Layout/AdminRoute';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
+import Profile from './pages/Auth/Profile';
 import ProductList from './pages/Products/ProductList';
 import ProductDetail from './pages/Products/ProductDetail';
 import Cart from './pages/Cart/Cart';
@@ -99,6 +100,16 @@ const AppRoutes = () => {
               <ReportsDashboard />
             </AppLayout>
           </AdminRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Profile />
+            </AppLayout>
+          </ProtectedRoute>
         }
       />
 

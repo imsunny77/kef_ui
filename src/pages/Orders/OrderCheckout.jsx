@@ -107,7 +107,7 @@ const OrderCheckout = () => {
   const getOrderItems = () => {
     if (cartItems && cartItems.length > 0) {
       return cartItems.map((item) => ({
-        product: item.product,
+        product: item.product || item, // Handle both backend structure (item.product) and legacy (item)
         quantity: item.quantity,
       }));
     } else if (product) {
@@ -120,7 +120,8 @@ const OrderCheckout = () => {
 
   const calculateTotal = () => {
     return orderItems.reduce((total, item) => {
-      const price = parseFloat(item.product.price) || 0;
+      // Handle both item.price (from backend cart) and item.product.price
+      const price = parseFloat(item.price || item.product?.price || 0);
       return total + price * item.quantity;
     }, 0);
   };
@@ -196,18 +197,20 @@ const OrderCheckout = () => {
         <StyledCard title="Order Summary">
           <Space orientation="vertical" style={{ width: '100%' }}>
             {orderItems.map((item, index) => {
-              const itemTotal = parseFloat(item.product.price) * item.quantity;
+              const product = item.product || item;
+              const itemPrice = parseFloat(item.price || product?.price || 0);
+              const itemTotal = itemPrice * item.quantity;
               return (
-                <div key={item.product.id || index}>
+                <div key={product?.id || index}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Text strong>
-                      {item.product.name} {item.quantity > 1 && `× ${item.quantity}`}
+                      {product?.name || 'Unknown Product'} {item.quantity > 1 && `× ${item.quantity}`}
                     </Text>
                     <Text strong>${itemTotal.toFixed(2)}</Text>
                   </div>
-                  {item.product.price && (
+                  {itemPrice > 0 && (
                     <Text type="secondary" style={{ fontSize: '12px' }}>
-                      ${parseFloat(item.product.price).toFixed(2)} each
+                      ${itemPrice.toFixed(2)} each
                     </Text>
                   )}
                 </div>

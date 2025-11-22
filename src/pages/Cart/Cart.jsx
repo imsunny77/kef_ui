@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Space, Typography, Image, Divider, Empty, message } from 'antd';
+import { Card, Button, Space, Typography, Image, Divider, Empty, message, Spin } from 'antd';
 import { ShoppingCartOutlined, DeleteOutlined, ArrowLeftOutlined, PlusOutlined, MinusOutlined } from '@ant-design/icons';
 import { useCart } from '../../contexts/CartContext';
 import styled from 'styled-components';
@@ -12,7 +12,7 @@ const StyledCard = styled(Card)`
 
 const Cart = () => {
   const navigate = useNavigate();
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, loading } = useCart();
 
   const handleCheckout = () => {
     if (cartItems.length === 0) {
@@ -22,19 +22,27 @@ const Cart = () => {
     navigate('/checkout', { state: { cartItems } });
   };
 
-  const handleQuantityIncrease = (productId, currentQuantity, maxStock) => {
+  const handleQuantityIncrease = (itemId, currentQuantity, maxStock) => {
     if (maxStock !== undefined && currentQuantity >= maxStock) {
       message.warning(`Only ${maxStock} items available in stock`);
       return;
     }
-    updateQuantity(productId, currentQuantity + 1);
+    updateQuantity(itemId, currentQuantity + 1);
   };
 
-  const handleQuantityDecrease = (productId, currentQuantity) => {
+  const handleQuantityDecrease = (itemId, currentQuantity) => {
     if (currentQuantity > 1) {
-      updateQuantity(productId, currentQuantity - 1);
+      updateQuantity(itemId, currentQuantity - 1);
     }
   };
+
+  if (loading && cartItems.length === 0) {
+    return (
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '50px', textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (
@@ -82,12 +90,15 @@ const Cart = () => {
             <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
               {cartItems.map((item) => {
                 const product = item.product;
-                const itemTotal = parseFloat(product.price) * item.quantity;
+                // Use item.price if available (from backend), otherwise fall back to product.price
+                const itemPrice = parseFloat(item.price || product?.price || 0);
+                const itemTotal = itemPrice * item.quantity;
+                const itemId = item.id; // Use cart item ID from backend
 
                 return (
-                  <StyledCard key={product.id}>
+                  <StyledCard key={itemId || product?.id}>
                     <div style={{ display: 'flex', gap: '16px' }}>
-                      {product.image ? (
+                      {product?.image ? (
                         <Image
                           src={product.image}
                           alt={product.name}
@@ -114,9 +125,9 @@ const Cart = () => {
                       )}
                       <div style={{ flex: 1 }}>
                         <Title level={4} style={{ margin: 0, marginBottom: '8px' }}>
-                          {product.name}
+                          {product?.name || 'Unknown Product'}
                         </Title>
-                        {product.description && (
+                        {product?.description && (
                           <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '8px' }}>
                             {product.description}
                           </Text>
@@ -127,8 +138,8 @@ const Cart = () => {
                             <Space.Compact>
                               <Button
                                 icon={<MinusOutlined />}
-                                onClick={() => handleQuantityDecrease(product.id, item.quantity)}
-                                disabled={item.quantity <= 1}
+                                onClick={() => handleQuantityDecrease(itemId, item.quantity)}
+                                disabled={item.quantity <= 1 || loading}
                                 style={{ width: '32px' }}
                               />
                               <div
@@ -150,12 +161,12 @@ const Cart = () => {
                               </div>
                               <Button
                                 icon={<PlusOutlined />}
-                                onClick={() => handleQuantityIncrease(product.id, item.quantity, product.stock_quantity)}
-                                disabled={product.stock_quantity !== undefined && item.quantity >= product.stock_quantity}
+                                onClick={() => handleQuantityIncrease(itemId, item.quantity, product?.stock_quantity)}
+                                disabled={(product?.stock_quantity !== undefined && item.quantity >= product.stock_quantity) || loading}
                                 style={{ width: '32px' }}
                               />
                             </Space.Compact>
-                            {product.stock_quantity !== undefined && (
+                            {product?.stock_quantity !== undefined && (
                               <Text type="secondary" style={{ fontSize: '12px' }}>
                                 Stock: {product.stock_quantity}
                               </Text>
@@ -169,7 +180,8 @@ const Cart = () => {
                               type="text"
                               danger
                               icon={<DeleteOutlined />}
-                              onClick={() => removeFromCart(product.id)}
+                              onClick={() => removeFromCart(itemId)}
+                              disabled={loading}
                             >
                               Remove
                             </Button>
@@ -177,7 +189,7 @@ const Cart = () => {
                         </div>
                         <div style={{ marginTop: '8px' }}>
                           <Text type="secondary" style={{ fontSize: '12px' }}>
-                            ${parseFloat(product.price).toFixed(2)} each
+                            ${itemPrice.toFixed(2)} each
                           </Text>
                         </div>
                       </div>
@@ -192,11 +204,13 @@ const Cart = () => {
             <Card title="Order Summary">
               <Space orientation="vertical" style={{ width: '100%' }}>
                 {cartItems.map((item) => {
-                  const itemTotal = parseFloat(item.product.price) * item.quantity;
+                  const product = item.product;
+                  const itemPrice = parseFloat(item.price || product?.price || 0);
+                  const itemTotal = itemPrice * item.quantity;
                   return (
-                    <div key={item.product.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div key={item.id || product?.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text>
-                        {item.product.name} × {item.quantity}
+                        {product?.name || 'Unknown Product'} × {item.quantity}
                       </Text>
                       <Text>${itemTotal.toFixed(2)}</Text>
                     </div>
@@ -215,6 +229,7 @@ const Cart = () => {
                   block
                   icon={<ShoppingCartOutlined />}
                   onClick={handleCheckout}
+                  disabled={loading}
                   style={{ marginTop: '16px' }}
                 >
                   Proceed to Checkout
@@ -224,6 +239,7 @@ const Cart = () => {
                   danger
                   block
                   onClick={clearCart}
+                  disabled={loading}
                   style={{ marginTop: '8px' }}
                 >
                   Clear Cart
