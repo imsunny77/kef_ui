@@ -39,3 +39,4 @@ export const checkoutCart = async (shippingAddress, billingAddress, clearCartAft
   return response.data;
 };
 
+
