@@ -276,28 +276,33 @@ const ProductList = () => {
                       <Col xs={24} sm={12} md={8} lg={6} key={product.id}>
                         <StyledCard
                           cover={
-                            product.image ? (
-                              <Image
-                                alt={product.name}
-                                src={product.image}
-                                height={200}
-                                style={{ objectFit: 'cover' }}
-                                fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4="
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  height: 200,
-                                  background: '#f0f0f0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: '#999',
-                                }}
-                              >
-                                No Image
-                              </div>
-                            )
+                            <div
+                              onClick={() => navigate(`/products/${product.id}`)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {product.image ? (
+                                <Image
+                                  alt={product.name}
+                                  src={product.image}
+                                  height={200}
+                                  style={{ objectFit: 'cover' }}
+                                  fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4="
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    height: 200,
+                                    background: '#f0f0f0',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#999',
+                                  }}
+                                >
+                                  No Image
+                                </div>
+                              )}
+                            </div>
                           }
                           actions={[
                             <Space key="actions" direction="vertical" style={{ width: '100%' }} size="small">
@@ -355,7 +360,14 @@ const ProductList = () => {
                           ]}
                         >
                           <Meta
-                            title={product.name}
+                            title={
+                              <div
+                                onClick={() => navigate(`/products/${product.id}`)}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                {product.name}
+                              </div>
+                            }
                             description={
                               <div>
                                 <Text strong style={{ fontSize: '18px', color: '#1890ff' }}>

@@ -8,6 +8,7 @@ import {
   LogoutOutlined,
   HomeOutlined,
   ShoppingCartOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 
 const { Header, Content, Footer } = Layout;
@@ -44,12 +45,25 @@ const AppLayout = ({ children }) => {
             icon={<HomeOutlined />}
             onClick={() => navigate('/products')}
             style={{
-              color: location.pathname === '/products' ? '#1890ff' : '#fff',
-              fontWeight: location.pathname === '/products' ? 'bold' : 'normal',
+              color: location.pathname === '/products' || location.pathname.startsWith('/products/') ? '#1890ff' : '#fff',
+              fontWeight: location.pathname === '/products' || location.pathname.startsWith('/products/') ? 'bold' : 'normal',
             }}
           >
             Products
           </Button>
+          {user?.user_type === 'customer' && (
+            <Button
+              type="text"
+              icon={<UnorderedListOutlined />}
+              onClick={() => navigate('/orders')}
+              style={{
+                color: location.pathname === '/orders' ? '#1890ff' : '#fff',
+                fontWeight: location.pathname === '/orders' ? 'bold' : 'normal',
+              }}
+            >
+              My Orders
+            </Button>
+          )}
           {user?.user_type === 'admin' && (
             <Menu
               theme="dark"

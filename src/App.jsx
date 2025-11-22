@@ -10,9 +10,11 @@ import AdminRoute from './components/Layout/AdminRoute';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ProductList from './pages/Products/ProductList';
+import ProductDetail from './pages/Products/ProductDetail';
 import Cart from './pages/Cart/Cart';
 import OrderCheckout from './pages/Orders/OrderCheckout';
 import OrderSuccess from './pages/Orders/OrderSuccess';
+import OrderHistory from './pages/Orders/OrderHistory';
 import ReportsDashboard from './pages/Reports/ReportsDashboard';
 
 const AppRoutes = () => {
@@ -40,11 +42,31 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/products/:id"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <ProductDetail />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/cart"
         element={
           <ProtectedRoute>
             <AppLayout>
               <Cart />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/orders"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <OrderHistory />
             </AppLayout>
           </ProtectedRoute>
         }
